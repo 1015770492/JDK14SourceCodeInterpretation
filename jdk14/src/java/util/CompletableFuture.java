@@ -14,6 +14,7 @@ import java.util.function.Supplier;
 
 public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
 
+    Stack
     volatile Object result;       // 返回的结果
     volatile Completion stack;    // Top of Treiber stack of dependent actions
     // 是否使用默认ForkJoinPool池
