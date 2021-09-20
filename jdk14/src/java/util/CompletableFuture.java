@@ -14,17 +14,31 @@ import java.util.function.Supplier;
 
 public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
 
-    Stack
     volatile Object result;       // 返回的结果
     volatile Completion stack;    // Top of Treiber stack of dependent actions
     // 是否使用默认ForkJoinPool池
     private static final boolean USE_COMMON_POOL = (ForkJoinPool.getCommonPoolParallelism() > 1);
-    // 异步执行的线程默认为ForkJoinPool,或者是new Thread().start();
+    // 异步执行的线程，默认为ForkJoinPool,或者是new Thread().start();cpu核心数超过2个以上，即>=3个cpu核心时才会默认使用forkJoinPool，否则是使用new Thread的方式完成任务
     private static final Executor ASYNC_POOL = USE_COMMON_POOL ? ForkJoinPool.commonPool() : new ThreadPerTaskExecutor();
-    static final int SYNC = 0;
-    static final int ASYNC = 1;
-    static final int NESTED = -1;
-    static final AltResult NIL = new AltResult(null);
+    static final int SYNC = 0;// 同步信号
+    static final int ASYNC = 1;// 异步信号
+    static final int NESTED = -1;// 嵌套
+    static final AltResult NIL = new AltResult(null);// 异常
+    private static final VarHandle RESULT;
+    private static final VarHandle STACK;
+    private static final VarHandle NEXT;
+
+    static {
+        try {
+            MethodHandles.Lookup l = MethodHandles.lookup();
+            RESULT = l.findVarHandle(CompletableFuture.class, "result", Object.class);
+            STACK = l.findVarHandle(CompletableFuture.class, "stack", Completion.class);
+            NEXT = l.findVarHandle(Completion.class, "next", Completion.class);
+        } catch (ReflectiveOperationException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+        Class<?> ensureLoaded = LockSupport.class;
+    }
     /**
      * 构造方法
      */
@@ -2172,19 +2186,5 @@ public class CompletableFuture<T> implements Future<T>, CompletionStage<T> {
         }
     }
 
-    private static final VarHandle RESULT;
-    private static final VarHandle STACK;
-    private static final VarHandle NEXT;
 
-    static {
-        try {
-            MethodHandles.Lookup l = MethodHandles.lookup();
-            RESULT = l.findVarHandle(CompletableFuture.class, "result", Object.class);
-            STACK = l.findVarHandle(CompletableFuture.class, "stack", Completion.class);
-            NEXT = l.findVarHandle(Completion.class, "next", Completion.class);
-        } catch (ReflectiveOperationException e) {
-            throw new ExceptionInInitializerError(e);
-        }
-        Class<?> ensureLoaded = LockSupport.class;
-    }
 }
